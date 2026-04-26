@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 from datetime import datetime, timedelta
 import time
+import matplotlib.pyplot as plt
 
 # Настройка страницы (должна быть первой командой)
 st.set_page_config(
@@ -30,9 +30,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Тема оформления
-    theme = st.selectbox("Выберите тему:", ["Светлая", "Темная"])
-    
     st.markdown("---")
     
     # Прогресс
@@ -54,30 +51,29 @@ if mode == "Визуализация данных":
         x = np.linspace(0, 10, n_points)
         y = np.sin(x) + np.random.normal(0, noise, n_points)
         
-        df = pd.DataFrame({
-            'x': x,
-            'y': y,
-            'sin(x)': np.sin(x)
-        })
-        
-        # Создание графика с помощью plotly
-        fig = px.line(df, x='x', y=['y', 'sin(x)'], 
-                      title=f'Сравнение зашумленных данных с sin(x)',
-                      labels={'x': 'X ось', 'value': 'Значение'},
-                      template='plotly_white')
-        st.plotly_chart(fig, use_container_width=True)
+        # Создание графика с помощью matplotlib
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(x, np.sin(x), 'g-', label='sin(x)', linewidth=2)
+        ax.scatter(x, y, alpha=0.6, label='Зашумленные данные', s=20)
+        ax.set_xlabel('X ось')
+        ax.set_ylabel('Значение')
+        ax.set_title(f'Сравнение зашумленных данных с sin(x)')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        st.pyplot(fig)
     
     with col2:
         st.subheader("📊 Гистограмма")
         
         # Гистограмма распределения ошибок
         errors = y - np.sin(x)
-        fig2 = px.histogram(errors, nbins=30, 
-                           title='Распределение ошибок',
-                           labels={'value': 'Ошибка', 'count': 'Частота'},
-                           color_discrete_sequence=['skyblue'])
-        fig2.update_layout(bargap=0.1)
-        st.plotly_chart(fig2, use_container_width=True)
+        fig2, ax2 = plt.subplots(figsize=(10, 6))
+        ax2.hist(errors, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
+        ax2.set_xlabel('Ошибка')
+        ax2.set_ylabel('Частота')
+        ax2.set_title('Распределение ошибок')
+        ax2.grid(True, alpha=0.3)
+        st.pyplot(fig2)
 
 elif mode == "Загрузка файла":
     st.subheader("📁 Загрузка данных из файла")
@@ -109,13 +105,20 @@ elif mode == "Загрузка файла":
             
             # Выбор столбцов для визуализации
             st.subheader("Быстрая визуализация")
-            cols = st.multiselect("Выберите столбцы для графика:", df.columns)
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
             
-            if len(cols) >= 2:
-                fig = px.scatter(df, x=cols[0], y=cols[1], 
-                                title=f'{cols[1]} vs {cols[0]}',
-                                trendline="ols")
-                st.plotly_chart(fig)
+            if len(numeric_cols) >= 2:
+                x_col = st.selectbox("Выберите столбец для оси X:", numeric_cols)
+                y_col = st.selectbox("Выберите столбец для оси Y:", numeric_cols)
+                
+                if st.button("Построить график"):
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    ax.scatter(df[x_col], df[y_col], alpha=0.6)
+                    ax.set_xlabel(x_col)
+                    ax.set_ylabel(y_col)
+                    ax.set_title(f'{y_col} vs {x_col}')
+                    ax.grid(True, alpha=0.3)
+                    st.pyplot(fig)
         
         except Exception as e:
             st.error(f"Ошибка при чтении файла: {str(e)}")
@@ -170,10 +173,13 @@ elif mode == "Генерация данных":
                 st.write(df[[col1_name, col2_name]].describe())
             
             # Визуализация
-            fig = px.scatter(df, x=col1_name, y=col2_name, 
-                           title='Диаграмма рассеяния',
-                           opacity=0.6)
-            st.plotly_chart(fig)
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.scatter(df[col1_name], df[col2_name], alpha=0.6)
+            ax.set_xlabel(col1_name)
+            ax.set_ylabel(col2_name)
+            ax.set_title('Диаграмма рассеяния')
+            ax.grid(True, alpha=0.3)
+            st.pyplot(fig)
             
             # Кнопка скачивания
             csv = df.to_csv(index=False)
@@ -253,8 +259,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: gray;'>
-        Создано с помощью Streamlit • 
-        <a href='https://streamlit.io'>Документация</a>
+        Создано с помощью Streamlit
     </div>
     """,
     unsafe_allow_html=True
@@ -263,4 +268,4 @@ st.markdown(
 # Вывод метрики в боковую панель (альтернативный способ)
 with st.sidebar:
     st.markdown("---")
-    st.metric("Текущая версия Streamlit", "1.28.0")
+    st.metric("Версия Streamlit", "1.28.0")
