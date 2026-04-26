@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 import time
-import matplotlib.pyplot as plt
 
 # Настройка страницы (должна быть первой командой)
 st.set_page_config(
@@ -30,8 +29,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    st.markdown("---")
-    
     # Прогресс
     if st.button("Показать информацию"):
         st.info("Это пример приложения Streamlit с различными функциями!")
@@ -51,43 +48,49 @@ if mode == "Визуализация данных":
         x = np.linspace(0, 10, n_points)
         y = np.sin(x) + np.random.normal(0, noise, n_points)
         
-        # Создание графика с помощью matplotlib
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(x, np.sin(x), 'g-', label='sin(x)', linewidth=2)
-        ax.scatter(x, y, alpha=0.6, label='Зашумленные данные', s=20)
-        ax.set_xlabel('X ось')
-        ax.set_ylabel('Значение')
-        ax.set_title(f'Сравнение зашумленных данных с sin(x)')
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        st.pyplot(fig)
+        # Создание DataFrame для отображения
+        df_plot = pd.DataFrame({
+            'X': x,
+            'Sin(x)': np.sin(x),
+            'Зашумленные данные': y
+        })
+        
+        # Используем line_chart для тренда
+        st.write("**Линия тренда (sin(x))**")
+        st.line_chart(df_plot.set_index('X')[['Sin(x)']])
+        
+        st.write("**Зашумленные данные**")
+        st.scatter_chart(df_plot.set_index('X')[['Зашумленные данные']])
     
     with col2:
-        st.subheader("📊 Гистограмма")
+        st.subheader("📊 Статистика данных")
         
-        # Гистограмма распределения ошибок
+        # Вычисляем ошибки
         errors = y - np.sin(x)
-        fig2, ax2 = plt.subplots(figsize=(10, 6))
-        ax2.hist(errors, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
-        ax2.set_xlabel('Ошибка')
-        ax2.set_ylabel('Частота')
-        ax2.set_title('Распределение ошибок')
-        ax2.grid(True, alpha=0.3)
-        st.pyplot(fig2)
+        
+        # Создаем DataFrame для гистограммы
+        df_errors = pd.DataFrame({
+            'Ошибка': errors
+        })
+        
+        st.write("**Гистограмма ошибок**")
+        st.bar_chart(df_errors['Ошибка'].value_counts().sort_index().head(20))
+        
+        st.write("**Статистика ошибок:**")
+        st.write(f"- Среднее: {np.mean(errors):.4f}")
+        st.write(f"- Стандартное отклонение: {np.std(errors):.4f}")
+        st.write(f"- Минимум: {np.min(errors):.4f}")
+        st.write(f"- Максимум: {np.max(errors):.4f}")
 
 elif mode == "Загрузка файла":
     st.subheader("📁 Загрузка данных из файла")
     
-    uploaded_file = st.file_uploader("Выберите CSV или Excel файл", 
-                                     type=['csv', 'xlsx', 'xls'])
+    uploaded_file = st.file_uploader("Выберите CSV файл", type=['csv'])
     
     if uploaded_file is not None:
         try:
-            # Определяем тип файла и читаем
-            if uploaded_file.name.endswith('.csv'):
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_excel(uploaded_file)
+            # Читаем CSV файл
+            df = pd.read_csv(uploaded_file)
             
             st.success(f"Файл успешно загружен! Размер: {df.shape}")
             
@@ -112,13 +115,8 @@ elif mode == "Загрузка файла":
                 y_col = st.selectbox("Выберите столбец для оси Y:", numeric_cols)
                 
                 if st.button("Построить график"):
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    ax.scatter(df[x_col], df[y_col], alpha=0.6)
-                    ax.set_xlabel(x_col)
-                    ax.set_ylabel(y_col)
-                    ax.set_title(f'{y_col} vs {x_col}')
-                    ax.grid(True, alpha=0.3)
-                    st.pyplot(fig)
+                    chart_data = df[[x_col, y_col]].dropna()
+                    st.scatter_chart(chart_data.set_index(x_col)[[y_col]])
         
         except Exception as e:
             st.error(f"Ошибка при чтении файла: {str(e)}")
@@ -172,14 +170,18 @@ elif mode == "Генерация данных":
                 st.write("Статистика:")
                 st.write(df[[col1_name, col2_name]].describe())
             
-            # Визуализация
-            fig, ax = plt.subplots(figsize=(10, 6))
-            ax.scatter(df[col1_name], df[col2_name], alpha=0.6)
-            ax.set_xlabel(col1_name)
-            ax.set_ylabel(col2_name)
-            ax.set_title('Диаграмма рассеяния')
-            ax.grid(True, alpha=0.3)
-            st.pyplot(fig)
+            # Визуализация с помощью встроенных инструментов
+            st.subheader("Визуализация данных")
+            chart_df = df[[col1_name, col2_name]].dropna()
+            
+            col_chart1, col_chart2 = st.columns(2)
+            with col_chart1:
+                st.write(f"**{col1_name} - {col2_name}**")
+                st.scatter_chart(chart_df.set_index(col1_name)[[col2_name]])
+            
+            with col_chart2:
+                st.write(f"**Гистограмма {col1_name}**")
+                st.bar_chart(df[col1_name].value_counts().sort_index().head(20))
             
             # Кнопка скачивания
             csv = df.to_csv(index=False)
@@ -265,7 +267,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Вывод метрики в боковую панель (альтернативный способ)
+# Вывод метрики в боковую панель
 with st.sidebar:
     st.markdown("---")
-    st.metric("Версия Streamlit", "1.28.0")
+    st.metric("Версия Streamlit", "1.56.0")
